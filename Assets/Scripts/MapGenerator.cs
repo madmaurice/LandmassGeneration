@@ -4,10 +4,12 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class MapGenerator : MonoBehaviour {
-
-    public enum DrawMode { NoiseMap, ColourMap, Mesh};
+public class MapGenerator : MonoBehaviour
+{
+    public enum DrawMode { NoiseMap, ColourMap, Mesh };
     public DrawMode drawMode;
+
+    public Noise.NormalizeMode normalizeMode;
 
     public const int mapChunkSize = 241;
     [Range(0,6)]
@@ -65,7 +67,7 @@ public class MapGenerator : MonoBehaviour {
     void MapDataThread(Vector2 center, Action<MapData> callback)
     {
         MapData mapData = GenerateMapData(center);
-        lock(mapDataThreadInfoQueue)
+        lock (mapDataThreadInfoQueue)
         {
             mapDataThreadInfoQueue.Enqueue(new MapThreadInfo<MapData>(callback, mapData));
         }
@@ -84,7 +86,7 @@ public class MapGenerator : MonoBehaviour {
     void MeshDataThread(MapData mapData, int lod, Action<MeshData> callback)
     {
         MeshData meshData = MeshGenerator.GenerateTerrainMesh(mapData.heightMap, meshHeightMultiplier, meshHeightCurve, lod);
-        lock(meshDataThreadInfoQueue)
+        lock (meshDataThreadInfoQueue)
         {
             meshDataThreadInfoQueue.Enqueue(new MapThreadInfo<MeshData>(callback, meshData));
         }
@@ -113,7 +115,7 @@ public class MapGenerator : MonoBehaviour {
 
     MapData GenerateMapData(Vector2 center)
     {
-        float[,] noiseMap = Noise.GenerateNoiseMap(mapChunkSize, mapChunkSize, seed, noiseScale, octaves, persistance, lacunarity, center + offset);
+        float[,] noiseMap = Noise.GenerateNoiseMap(mapChunkSize, mapChunkSize, seed, noiseScale, octaves, persistance, lacunarity, center + offset, normalizeMode);
 
         Color[] colourMap = new Color[mapChunkSize * mapChunkSize];
         for (int y = 0; y < mapChunkSize; y++)
@@ -123,9 +125,12 @@ public class MapGenerator : MonoBehaviour {
                 float currentHeight = noiseMap[x, y];
                 for (int i = 0; i < regions.Length; i++)
                 {
-                    if (currentHeight <= regions[i].height)
+                    if (currentHeight >= regions[i].height)
                     {
                         colourMap[y * mapChunkSize + x] = regions[i].colour;
+                    }
+                    else
+                    {
                         break;
                     }
                 }
